@@ -1,45 +1,63 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { UserEntity } from './dto/User-Entity';
 import axios from 'axios';
+import { RowDataPacket } from 'mysql2';
+import { DatabaseService } from 'src/config/database.service';
 
 @Injectable()
 export class UsersService {
-  // Mock user validation
+  constructor(private readonly db: DatabaseService) {}
+
   async findByTokenAndRealm(token: string, realm: string): Promise<UserEntity | null> {
-    if (token === 'a' && realm === 'b') {
+    try {
+      // 🔍 Step 1: Query the MySQL database
+      const sql = `
+        SELECT ue.username, ue.email, ue.password, r.name AS realm
+        FROM USER_ENTITY ue
+        INNER JOIN USER_ATTRIBUTE ua ON ue.id = ua.user_id
+        INNER JOIN REALM r ON r.id = ue.realm_id
+        WHERE ua.name = 'token' AND ua.value = ? AND r.name = ?
+      `;
+
+      const rows = await this.db.query<RowDataPacket[]>(sql, [token, realm]);
+      const users = rows as { username: string; email: string; password: string; realm: string }[];
+
+      if (users.length === 0) {
+        throw new HttpException('User not found for given token and realm', HttpStatus.NOT_FOUND);
+      }
+
+      const dbUser = users[0];
+
       const user: UserEntity = {
-        username: 'mockuser',
-        email: 'mammen.mathew@singularisfuture.com', // email to use for login
-        password: 'Mammen@123',
-        realm: 'mec',
+        username: dbUser.username,
+        email: dbUser.email,
+        password: dbUser.password, // from DB
+        realm: dbUser.realm,
         token: token,
       };
 
-      // Call login API
-      try {
-        const response = await axios.post(
-          'https://devapi.singulariswow.com/auth/tokens/login',
-          {
-            email: user.email,
-            password: user.password, // use your password
-          },
+      // 🔐 Step 2: Call login API
+      const response = await axios.post(
+        'https://devapi.singulariswow.com/auth/tokens/login',
+        {
+          email: user.email,
+          password: user.password,
+        },
+      );
 
-        );
+      // ✅ Step 3: Return combined result
+      return {
+        ...user,
+        redirecUrl: 'https://dev.singulariswow.com/learner/dashboard',
+        loginData: response.data,
+      };
+    } catch (err: any) {
+      if (err instanceof HttpException) throw err;
 
-        // Attach login result to user object
-        return {
-          ...user,
-          redirecUrl: "https://dev.singulariswow.com/learner/dashboard",
-          loginData: response.data, // contains token or other response
-        };
-      } catch (err) {
-        throw new HttpException(
-          `Login API failed: ${err.response?.data || err.message}`,
-          HttpStatus.BAD_GATEWAY,
-        );
-      }
+      throw new HttpException(
+        `Error: ${err.response?.data || err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-
-    return null;
   }
 }
