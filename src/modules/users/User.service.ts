@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Pool } from 'pg';
 import { UserEntity } from './dto/User-Entity';
 import pool from 'src/config/utils/pool.utils';
+import { DASHBOARD_URL, LOGIN_API_URL } from 'src/config/config/config';
 
 
 @Injectable()
@@ -47,7 +48,7 @@ async findByTokenAndRealm(token: string, realm?: string): Promise<UserEntity | n
 
     // 🔐 Call external login API
     const response = await axios.post(
-      'https://devapi.singulariswow.com/auth/tokens/login',
+      LOGIN_API_URL,
       {
         email: user.email,
         password: user.token,
@@ -57,7 +58,7 @@ async findByTokenAndRealm(token: string, realm?: string): Promise<UserEntity | n
     // ✅ Return combined data
     return {
       ...user,
-      redirecUrl: 'https://dev.singulariswow.com/learner/dashboard',
+      redirecUrl: DASHBOARD_URL,
       loginData: response.data,
     };
   } catch (err: any) {
