@@ -10,10 +10,10 @@ export class UsersController {
 
   @Get('validate')
   @ApiQuery({ name: 'token', required: true })
-  @ApiQuery({ name: 'realm', required: false })
+  @ApiQuery({ name: 'realm', required: true })
   async validateUser(
     @Query('token') token: string,
-  @Query('realm') realm: string | undefined,
+  @Query('realm') realm: string ,
     @Res() res: Response, // Express Response
   ) {
     const user = await this.usersService.findByTokenAndRealm(token, realm);

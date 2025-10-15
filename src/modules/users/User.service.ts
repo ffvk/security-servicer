@@ -14,7 +14,7 @@ export class UsersService {
     this.pool = pool;
   }
 
-async findByTokenAndRealm(token: string, realm?: string): Promise<UserEntity | null> {
+async findByTokenAndRealm(token: string, realm: string): Promise<UserEntity | null> {
   const client = await this.pool.connect();
   try {
     let sql = `
